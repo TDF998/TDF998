@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>按钮点击播放音频</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            /* 背景：渐变打底 + 浅色网格覆层 */
+            background: 
+                repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.2) 1px, transparent 1px, transparent 20px),
+                repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.2) 1px, transparent 1px, transparent 20px),
+                linear-gradient(135deg, #DAEDFE 0%, #A6D1FF 100%);
+            background-attachment: fixed;
+            background-repeat: no-repeat;
+            min-height: 100vh;
+            font-family: "Microsoft YaHei", sans-serif;
+            overflow-x: hidden;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* 标题：文字渐变色 */
+        .title {
+            font-size: 28px;
+            font-weight: bold;
+            text-align: center;
+            padding: 10px 0 20px 0;
+            background: linear-gradient(135deg, #061849 0%, #0997a7 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+            max-width: 600px;
+            width: 100%;
+        }
+
+       /* 按钮容器：核心优化 - 添加内边距，为阴影留出显示空间，避免被裁切 */
+       .btn-container {
+            width: 100%;
+            max-width: 600px;
+            height: auto;
+            max-height: calc(100vh - 80px);
+            /* 网格布局：保留最小宽度，确保按钮正方形 */
+            display: grid;
+            grid-template-columns: repeat(2, minmax(140px, 1fr));
+            /* 按钮间距不变 */
+            grid-gap: 20px;
+            /* 核心修改：添加左右15px、上下5px内边距，容纳阴影，不裁切 */
+            padding: 0 15px 15px 15px;
+            overflow-y: auto;
+            scrollbar-width: none;
+        }
+
+        .btn-container::-webkit-scrollbar {
+            display: none;
+        }
+
+        /* 音频按钮：彻底修复正方形逻辑，杜绝细条问题 */
+        .audio-btn {
+            /* 1. 强制铺满网格单元格，获取有效宽度（关键：解决细条核心） */
+            width: 100%;
+            /* 2. 正方形核心：兜底方案优先，确保所有浏览器生效 */
+            position: relative;
+            /* 高度由padding-top控制，等于宽度，强制1:1正方形 */
+            padding-top: 100%;
+            /* 3. 隐藏多余属性，避免干扰尺寸计算 */
+            border: none;
+            /* 核心：白色描边 2px，透明度 80% */
+            border: 2px solid rgba(255, 255, 255, 0.8);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            overflow: hidden;
+            /* 4. 按钮渐变背景（铺满正方形） */
+            background: linear-gradient(135deg, #f9fbff 0%, #eff3ff 50%, #ffffff 100%);
+            /* 默认状态：原大小，无变形 */
+            transform: translateY(0) scale(1);
+        }
+
+        /* 按钮内容：绝对定位，居中显示，不干扰正方形尺寸 */
+        .btn-content {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px;
+            color: #0D1D54;
+            font-size: clamp(16px, 3vw, 18px);
+            font-weight: bold;
+            text-align: center;
+        }
+
+        /* 点击（按压）时：变大上浮+渐变提亮，保留交互 */
+        .audio-btn:active {
+            transform: translateY(-6px) scale(1.02);
+            background: linear-gradient(135deg, #ffffff 0%, #f5f8ff 50%, #e8eeff 100%);
+            box-shadow: 0 6px 16px rgba(202, 210, 255, 0.8);
+        }
+
+        /* 点击波纹效果：适配正方形布局，不冲突 */
+        .audio-btn::after {
+            content: "";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 1px;
+            height: 1px;
+            background: rgba(90, 110, 219, 0.3);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            opacity: 0;
+            transition: width 0.6s ease, height 0.6s ease, opacity 0.6s ease;
+        }
+
+        .audio-btn:active::after {
+            width: 200%;
+            height: 200%;
+            opacity: 1;
+        }
+
+        /* 隐藏原生音频播放器 */
+        audio {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1 class="title">涛哥打牌专属音效</h1>
+
+    <div class="btn-container">
+        <!-- 重构：按钮外层保证正方形，内层.btn-content放文字，彻底分离尺寸和内容 -->
+        <button class="audio-btn" data-audio-id="audio1">
+            <div class="btn-content">窝要验牌</div>
+        </button>
+        <button class="audio-btn" data-audio-id="audio2">
+            <div class="btn-content">牌煤油问题</div>
+        </button>
+        <button class="audio-btn" data-audio-id="audio3">
+            <div class="btn-content">给窝擦皮鞋</div>
+        </button>
+        <button class="audio-btn" data-audio-id="audio4">
+            <div class="btn-content">小瘪三</div>
+        </button>
+        <button class="audio-btn" data-audio-id="audio5">
+            <div class="btn-content">轮到你说话了?</div>
+        </button>
+        <button class="audio-btn" data-audio-id="audio6">
+            <div class="btn-content">小儿咳</div>
+        </button>
+    </div>
+
+    <audio id="audio1" src="wyyp.mp3"></audio>
+    <audio id="audio2" src="pmywt.mp3"></audio>
+    <audio id="audio3" src="gwcpx.mp3"></audio>
+    <audio id="audio4" src="xbs.mp3"></audio>
+    <audio id="audio5" src="bxsh.mp3"></audio>
+    <audio id="audio6" src="xek.mp3"></audio>
+
+    <script>
+        const audioButtons = document.querySelectorAll('.audio-btn');
+        const audioElements = document.querySelectorAll('audio');
+
+        audioButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const targetAudioId = this.getAttribute('data-audio-id');
+                const targetAudio = document.getElementById(targetAudioId);
+
+                audioElements.forEach(audio => {
+                    if (audio.id !== targetAudioId && !audio.paused) {
+                        audio.pause();
+                        audio.currentTime = 0;
+                    }
+                });
+
+                try {
+                    if (!targetAudio.paused) {
+                        targetAudio.pause();
+                        targetAudio.currentTime = 0;
+                    } else {
+                        targetAudio.play();
+                    }
+                } catch (error) {
+                    alert(`音频播放失败：${error.message}，请检查音频文件路径是否正确`);
+                    console.error('音频播放异常：', error);
+                }
+            });
+        });
+    </script>
+</body>
+</html>
